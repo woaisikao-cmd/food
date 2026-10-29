@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>探店美食地图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,600&family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   粉丝前台 · 可爱风（奶油底 / 草莓粉 / 奶油黄 / 圆滚滚一切）
+   页面结构：地图页(默认) / 博主主页 / 收藏页 + 底部Tab
+   点任何店铺都会跳到博主主页，并把对应的视频卡滑到屏幕中间
+   ============================================================ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#FFF9F2;--paper:#FFFDF9;
+  --ink:#4A3728;--ink-soft:#8A7360;
+  --pink:#FF6B8B;--pink-deep:#F04E77;--pink-soft:#FFE3EA;
+  --butter:#FFC94D;--butter-soft:#FFF3D6;
+  --mint:#5FBF9B;--mint-soft:#E0F4EA;
+  --lav:#B49CF6;--lav-soft:#EFE9FF;
+  --line:rgba(74,55,40,.13);--line-soft:rgba(74,55,40,.07);
+  --cute:"ZCOOL KuaiLe","Noto Sans SC",sans-serif;
+  --round:"Nunito","Noto Sans SC",sans-serif;
+  --topbar-h:64px;--sheet-h:30vh;
+  --shadow-pop:0 14px 36px rgba(240,78,119,.16);
+  --shadow-soft:0 8px 24px rgba(74,55,40,.10);
+}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--ink);font-family:var(--round);overflow:hidden;-webkit-font-smoothing:antialiased;}
+.stage{position:relative;width:100%;max-width:440px;margin:0 auto;height:100vh;height:100dvh;background:var(--bg);overflow:hidden;box-shadow:0 0 80px rgba(74,55,40,.14);}
+
+/* ============================================================
+   开门动效
+   ============================================================ */
+.doors{position:absolute;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 40%,rgba(255,107,139,.10),transparent 55%),var(--bg);pointer-events:all;}
+.doors.gone{display:none;}
+.door-stage{display:flex;flex-direction:column;align-items:center;gap:20px;}
+.door-frame{position:relative;width:142px;height:206px;display:flex;perspective:1000px;
+  border:3px solid #E8B08C;border-radius:18px 18px 6px 6px;background:#FFEDDC;overflow:hidden;
+  box-shadow:0 18px 44px rgba(74,55,40,.16),inset 0 0 0 2px rgba(255,255,255,.6);}
+.door{position:relative;width:50%;height:100%;
+  background:linear-gradient(160deg,#FF8FA8 0%,#FF6B8B 55%,#F04E77 100%);
+  box-shadow:inset 0 0 24px rgba(160,40,80,.25);transform-style:preserve-3d;
+  transition:transform .75s cubic-bezier(.7,0,.2,1);}
+.door-left{transform-origin:left center;border-radius:14px 0 0 0;}
+.door-right{transform-origin:right center;border-radius:0 14px 0 0;}
+.door-panel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--cute);font-size:44px;color:#FFFDF9;text-shadow:0 3px 0 rgba(160,40,80,.35);}
+.door-left .door-panel{padding-right:5px;}
+.door-right .door-panel{padding-left:5px;}
+.door::after{content:"";position:absolute;top:14px;left:10px;right:10px;height:12px;
+  background:repeating-linear-gradient(90deg,#FFFDF9 0 12px,transparent 12px 22px);border-radius:8px;opacity:.85;}
+.door-handle{position:absolute;top:52%;width:7px;height:7px;border-radius:50%;
+  background:#FFF3D6;box-shadow:0 0 8px rgba(255,201,77,.9);}
+.door-left .door-handle{right:8px;transform:translateY(-50%);}
+.door-right .door-handle{left:8px;transform:translateY(-50%);}
+.doors.open .door-left{transform:translateX(-118%) rotateY(-32deg);}
+.doors.open .door-right{transform:translateX(118%) rotateY(32deg);}
+.doors.fade{transition:opacity .5s ease;opacity:0;}
+.door-label{font-family:var(--cute);font-size:17px;letter-spacing:.3em;color:var(--ink);}
+.door-label small{display:block;text-align:center;font-family:var(--round);font-style:italic;
+  font-size:10px;letter-spacing:.34em;color:var(--ink-soft);margin-top:4px;text-transform:uppercase;}
+.door-status{font-family:var(--round);font-size:11px;letter-spacing:.2em;color:var(--ink-soft);min-height:16px;}
+.door-err{max-width:290px;text-align:center;display:none;flex-direction:column;align-items:center;gap:13px;}
+.door-err.show{display:flex;animation:errIn .5s cubic-bezier(.22,1,.36,1) both;}
+@keyframes errIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+.door-err .emo{font-size:44px;line-height:1;}
+.door-err .t{font-family:var(--cute);font-size:21px;letter-spacing:.16em;}
+.door-err .d{font-size:13px;color:var(--ink-soft);line-height:2;letter-spacing:.04em;}
+.door-err code{display:block;margin-top:10px;padding:10px 16px;background:#FFF3D6;
+  border:1.5px dashed #E8C88A;border-radius:12px;font-size:12px;color:var(--ink);}
+
+/* ============================================================
+   地图页
+   ============================================================ */
+.view{position:absolute;inset:0;z-index:200;background:var(--bg);display:none;overflow:hidden;}
+.view.on{display:block;animation:viewIn .35s cubic-bezier(.22,1,.36,1) both;}
+@keyframes viewIn{from{opacity:0;transform:translateY(16px) scale(.985);}to{opacity:1;transform:none;}}
+#viewMap{background:transparent;}
+/* 子页顶栏（收藏/博主页）：absolute 钉在 .view 视口顶部——顶栏在滚动容器
+   .page 外面，所以内容怎么滚它都不动；.page 自身有 58px 顶部让位防遮挡 */
+.sub-topbar{position:absolute;top:0;left:0;right:0;z-index:120;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));
+  background:linear-gradient(180deg,rgba(255,249,242,.97) 0%,rgba(255,249,242,.88) 100%);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1.5px dashed rgba(232,176,140,.5);}
+.sub-topbar .brand{display:flex;align-items:center;gap:8px;min-width:0;}
+.sub-topbar .logo{width:36px;height:36px;border-radius:13px;flex:0 0 auto;
+  background:linear-gradient(145deg,#FF8FA8,#F04E77);
+  display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;
+  box-shadow:0 6px 14px rgba(240,78,119,.3);animation:wobble 3.4s ease-in-out infinite;}
+.sub-topbar .logo img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;}
+.sub-topbar .cn{font-family:var(--cute);font-size:15px;letter-spacing:.1em;color:var(--ink);white-space:nowrap;}
+.sub-topbar .cn b{color:var(--pink);font-weight:400;}
+.sub-topbar .sub-title{font-family:var(--cute);font-size:15px;letter-spacing:.1em;color:var(--pink-deep);
+  flex:0 0 auto;white-space:nowrap;}
+
+#map{position:absolute;inset:0;z-index:1;background:#FFF3E6;
+  /* 触摸全权交给高德 SDK 处理：防止微信内核把快速双击拿去自己做手势判定，
+     导致地图收不到双击、放不了大 */
+  touch-action:none;}
+.map-fallback{position:absolute;inset:0;z-index:2;display:none;
+  background:linear-gradient(180deg,#FFF3E6 0%,#FFF9F2 60%,#FFEFE2 100%);}
+.map-fallback.show{display:block;}
+.map-fallback::before{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(rgba(240,78,119,.13) 1.5px,transparent 1.5px);background-size:24px 24px;}
+.fallback-inner{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;}
+.fallback-inner .bowl{width:76px;height:76px;border-radius:50%;background:#FFFDF9;border:3px solid #E8B08C;
+  box-shadow:var(--shadow-soft);display:flex;align-items:center;justify-content:center;
+  font-size:36px;animation:float 3.2s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-6deg);}50%{transform:translateY(-9px) rotate(6deg);}}
+.fallback-inner .t{font-family:var(--cute);font-size:18px;letter-spacing:.2em;}
+.fallback-inner .d{font-size:12px;color:var(--ink-soft);letter-spacing:.1em;line-height:2;}
+
+/* 顶栏：品牌 + 右上角城市/区域切换 */
+.topbar{position:absolute;top:0;left:0;right:0;z-index:120;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));
+  background:linear-gradient(180deg,rgba(255,249,242,.97) 0%,rgba(255,249,242,.88) 100%);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1.5px dashed rgba(232,176,140,.5);}
+.brand{display:flex;align-items:center;gap:8px;min-width:0;}
+.brand .logo{
+  width:36px;height:36px;border-radius:13px;flex:0 0 auto;
+  background:linear-gradient(145deg,#FF8FA8,#F04E77);
+  display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;
+  box-shadow:0 6px 14px rgba(240,78,119,.3);animation:wobble 3.4s ease-in-out infinite;}
+.brand .logo img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;}
+@keyframes wobble{0%,100%{transform:rotate(-4deg);}50%{transform:rotate(5deg);}}
+.brand .cn{font-family:var(--cute);font-size:15px;letter-spacing:.1em;color:var(--ink);white-space:nowrap;}
+.brand .cn b{color:var(--pink);font-weight:400;}
+.loc-sel{display:flex;gap:6px;flex:0 0 auto;}
+.mini-select{
+  height:32px;max-width:88px;padding:0 22px 0 9px;border-radius:11px;
+  border:1.5px solid rgba(232,176,140,.45);background:var(--paper);
+  font-family:var(--round);font-weight:800;font-size:12px;color:var(--ink);
+  appearance:none;-webkit-appearance:none;outline:none;cursor:pointer;
+  background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 9 6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' stroke='%23B0917A' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+  transition:border-color .25s,color .25s;
+}
+.mini-select.picked{border-color:var(--pink);color:var(--pink-deep);background:var(--pink-soft);}
+
+/* 搜索筛选卡 */
+.filter-card{position:absolute;top:calc(var(--topbar-h) + 8px + env(safe-area-inset-top));
+  left:12px;right:12px;z-index:110;
+  background:rgba(255,253,249,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1.5px solid rgba(232,176,140,.4);border-radius:20px;
+  box-shadow:var(--shadow-soft);padding:9px;display:flex;flex-direction:column;gap:7px;
+  animation:cardIn .6s cubic-bezier(.22,1,.36,1) both .1s;}
+@keyframes cardIn{from{opacity:0;transform:translateY(-14px);}to{opacity:1;transform:none;}}
+.search-row{display:flex;align-items:center;gap:8px;}
+.search-ico{flex:0 0 auto;width:32px;height:32px;border-radius:12px;
+  background:var(--butter-soft);display:flex;align-items:center;justify-content:center;font-size:14px;}
+.search-box{flex:1;display:flex;align-items:center;min-width:0;}
+.search-box input{width:100%;border:none;outline:none;background:transparent;
+  font-family:var(--round);font-size:13.5px;font-weight:600;color:var(--ink);letter-spacing:.03em;}
+.search-box input::placeholder{color:#C4AC96;}
+.clear-btn{flex:0 0 auto;width:24px;height:24px;border-radius:50%;border:none;
+  background:var(--pink-soft);color:var(--pink-deep);font-size:11px;line-height:1;
+  cursor:pointer;display:none;align-items:center;justify-content:center;}
+.clear-btn.show{display:flex;}
+.chip-row{display:flex;gap:6px;overflow-x:auto;padding:1px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.chip-row::-webkit-scrollbar{display:none;}
+.near-chip{
+  align-self:flex-start;display:none;align-items:center;gap:5px;
+  height:26px;padding:0 11px;border-radius:13px;border:none;cursor:pointer;
+  background:var(--mint-soft);color:#1F7D66;font-family:var(--round);font-weight:800;font-size:11px;
+}
+.near-chip.show{display:flex;}
+
+/* 附近按钮（右下角，原地不动。z-index 低于抽屉(100)：抽屉上滑时盖住它，下滑才重新露出） */
+.locate-fab{position:absolute;right:16px;bottom:calc(30vh + 66px + env(safe-area-inset-bottom));
+  z-index:90;width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(145deg,#FF8FA8,#F04E77);color:#FFFDF9;
+  box-shadow:0 10px 24px rgba(240,78,119,.42),inset 0 -3px 0 rgba(160,40,80,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  font-family:var(--cute);font-size:10px;letter-spacing:.1em;transition:transform .18s,filter .2s;}
+.locate-fab svg{width:19px;height:19px;}
+.locate-fab:active{transform:scale(.9);}
+.locate-fab.on{filter:saturate(.4) brightness(.85);}
+.locate-fab .ring{position:absolute;inset:-6px;border-radius:50%;
+  border:2px solid rgba(240,78,119,.45);animation:fabPulse 2.4s ease-out infinite;}
+@keyframes fabPulse{0%{transform:scale(.8);opacity:1;}100%{transform:scale(1.22);opacity:0;}}
+
+/* 「筛选」悬浮按钮（附近按钮上方，原地不动。z-index 低于抽屉(100)：抽屉上滑盖住它） */
+.filter-fab{
+  position:absolute;right:16px;
+  bottom:calc(30vh + 134px + env(safe-area-inset-bottom));
+  z-index:90;width:54px;height:54px;border-radius:50%;
+  border:none;cursor:pointer;
+  background:linear-gradient(145deg,#FFD97A,#F5A623);color:#6B4A00;
+  box-shadow:0 10px 24px rgba(245,166,35,.42),inset 0 -3px 0 rgba(180,120,20,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  font-family:var(--cute);font-size:10px;letter-spacing:.1em;
+  transition:transform .18s,filter .2s;
+}
+.filter-fab svg{width:19px;height:19px;}
+.filter-fab:active{transform:scale(.9);}
+.filter-fab.has{
+  background:linear-gradient(145deg,#A796FF,#6E5BE0);color:#fff;
+  box-shadow:0 10px 24px rgba(110,91,224,.42),inset 0 -3px 0 rgba(70,55,160,.3);
+}
+
+/* 图钉标记 */
+.pin{position:relative;width:40px;height:46px;cursor:pointer;animation:pinDrop .5s cubic-bezier(.34,1.56,.64,1) both;}
+@keyframes pinDrop{from{opacity:0;transform:translateY(-18px) scale(.6);}to{opacity:1;transform:none;}}
+.pin .badge{position:absolute;left:50%;bottom:8px;width:34px;height:34px;
+  background:#FFFDF9;border:2.5px solid var(--pink);border-radius:50% 50% 50% 6px;
+  transform:translateX(-50%) rotate(-45deg);
+  box-shadow:0 5px 14px rgba(240,78,119,.35);
+  display:flex;align-items:center;justify-content:center;transition:transform .25s,background .25s;}
+.pin .badge i{transform:rotate(45deg);font-style:normal;font-size:16px;line-height:1;}
+.pin .shadow{position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  width:16px;height:6px;border-radius:50%;background:rgba(74,55,40,.2);}
+/* 搜索时图钉顶上的店名小标签（最多 5 个字，帮助认出是哪家店） */
+.pin-label{position:absolute;left:50%;bottom:calc(100% + 2px);transform:translateX(-50%);
+  background:var(--ink);color:#FFFDF9;font-size:10px;font-weight:700;letter-spacing:.04em;
+  padding:3px 7px;border-radius:9px;white-space:nowrap;
+  box-shadow:0 4px 10px rgba(74,55,40,.28);pointer-events:none;}
+.pin.active .badge{background:var(--pink);border-color:var(--pink-deep);
+  transform:translateX(-50%) rotate(-45deg) scale(1.22);
+  box-shadow:0 8px 20px rgba(240,78,119,.55);}
+.me-wrap{position:relative;width:20px;height:20px;}
+.me-wrap .core{position:absolute;inset:0;border-radius:50%;background:var(--pink);border:3px solid #FFFDF9;
+  box-shadow:0 2px 8px rgba(74,55,40,.3);}
+.me-wrap .halo{position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(240,78,119,.45);
+  animation:mePulse 2s ease-out infinite;}
+@keyframes mePulse{0%{transform:scale(.55);opacity:1;}100%{transform:scale(1.25);opacity:0;}}
+
+/* 底部列表 */
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:100;height:var(--sheet-h);
+  /* relative 让翻页条等内部绝对定位元素相对抽屉本体定位 */
+  background:#FFFDF9;border-radius:24px 24px 0 0;border-top:2.5px solid #E8B08C;
+  box-shadow:0 -12px 34px rgba(74,55,40,.12);display:flex;flex-direction:column;
+  transition:height .42s cubic-bezier(.22,1,.36,1);}
+/* 拖拽进行中不能有过渡动画，手放哪就停哪，否则会“甩”一下 */
+.sheet.dragging{transition:none;}
+.grabber{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;padding:10px 0 2px;
+  cursor:grab;touch-action:none;}
+.grabber:active{cursor:grabbing;}
+.grabber i{width:40px;height:5px;border-radius:3px;background:#E8C88A;display:block;}
+.grabber .tip{margin-top:3px;font-size:9px;font-weight:700;letter-spacing:.22em;
+  color:#C4AC96;text-align:center;}
+.sheet-head{flex:0 0 auto;display:flex;align-items:baseline;justify-content:space-between;
+  padding:6px 20px 10px;border-bottom:1.5px dashed rgba(232,176,140,.5);
+  touch-action:none;cursor:grab;}
+.sheet-head .title{font-family:var(--cute);font-size:15px;letter-spacing:.16em;}
+.sheet-head .title em{font-style:normal;font-family:var(--round);font-weight:800;font-size:10px;
+  letter-spacing:.2em;color:var(--pink);margin-left:6px;text-transform:uppercase;}
+.sheet-head .count{font-family:var(--round);font-weight:800;font-style:italic;font-size:11px;
+  letter-spacing:.16em;color:var(--ink-soft);}
+.sheet-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:3px 0 66px;}
+.shop-item{display:flex;align-items:center;gap:11px;padding:11px 20px;cursor:pointer;
+  border-bottom:1.5px dashed rgba(232,176,140,.3);transition:background .25s;
+  animation:itemIn .45s cubic-bezier(.22,1,.36,1) both;}
+@keyframes itemIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.shop-item:active{background:#FFF3E6;}
+.shop-item .info{flex:1;min-width:0;}
+.shop-item .name{font-family:var(--round);font-weight:800;font-size:14px;color:var(--ink);
+  letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.shop-item .sub{margin-top:3px;font-size:11px;color:var(--ink-soft);letter-spacing:.04em;
+  display:flex;align-items:center;gap:6px;font-weight:600;flex-wrap:wrap;}
+/* 区域：第二行最前面的绿色小药丸 */
+.shop-item .sub .pl{color:#1F7D66;background:var(--mint-soft);padding:2px 7px;border-radius:8px;
+  white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.shop-item .sub .price{color:var(--pink-deep);}
+/* 第三行：营业时间 + 电话（区域已挪到第二行最前） */
+.shop-item .meta{margin-top:3px;font-size:11px;color:var(--ink-soft);letter-spacing:.04em;
+  display:flex;align-items:center;gap:6px;font-weight:600;flex-wrap:wrap;}
+.shop-item .meta .hours{color:var(--ink-soft);background:rgba(148,187,156,.16);padding:2px 7px;border-radius:8px;
+  white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.shop-item .meta .tel{color:#1F7D66;background:var(--mint-soft);padding:2px 7px;border-radius:8px;
+  text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;
+  letter-spacing:.08em;font-family:var(--round);font-weight:800;}
+.shop-item .meta .tel svg{width:11px;height:11px;}
+/* 右列：距离在上、收藏心心在下；心心与距离左右居中对齐，
+   垂直间距拉大（gap 10px + 心心自身加 padding），避免想点距离时误触收藏 */
+.shop-item .right{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.shop-item .right .dist{font-family:var(--round);font-weight:800;font-size:12px;color:var(--pink-deep);
+  background:var(--pink-soft);padding:3px 9px;border-radius:10px;white-space:nowrap;}
+.shop-item .right .fav{background:none;border:none;cursor:pointer;font-size:17px;line-height:1;
+  padding:4px 6px;opacity:.55;transition:transform .2s;}
+.shop-item .right .fav.on{opacity:1;}
+.shop-item .right .fav:active{transform:scale(1.4);}
+.empty-tip{padding:34px 24px;text-align:center;color:var(--ink-soft);
+  font-size:13px;letter-spacing:.1em;line-height:2.1;font-weight:600;}
+.empty-tip .big{display:block;font-size:38px;margin-bottom:6px;}
+.empty-tip .en{display:block;font-family:var(--round);font-style:italic;font-size:10.5px;
+  letter-spacing:.3em;color:#C4AC96;text-transform:uppercase;margin-top:4px;font-weight:700;}
+
+/* ============================================================
+   底部 Tab 栏（地图 / 收藏 / 博主）
+   ============================================================ */
+.tabbar{
+  position:absolute;left:50%;transform:translateX(-50%);
+  bottom:calc(12px + env(safe-area-inset-bottom));z-index:215;
+  display:flex;gap:4px;padding:5px;border-radius:26px;
+  background:rgba(255,253,249,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:2px solid rgba(232,176,140,.45);box-shadow:var(--shadow-pop);
+}
+.tabbar.hidden{display:none;}
+.tab{
+  border:none;background:transparent;cursor:pointer;
+  min-width:92px;height:46px;border-radius:21px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  font-family:var(--cute);font-size:12px;letter-spacing:.12em;color:var(--ink-soft);
+  transition:all .25s;position:relative;
+}
+.tab .ico{font-size:17px;line-height:1;transition:transform .25s;}
+.tab.on{background:var(--pink);color:#fff;box-shadow:0 6px 14px rgba(240,78,119,.35);}
+.tab.on .ico{transform:scale(1.12) rotate(-6deg);}
+.tab .dot{
+  position:absolute;top:6px;right:14px;min-width:16px;height:16px;border-radius:8px;
+  background:var(--butter);color:var(--ink);font-family:var(--round);font-weight:800;
+  font-size:9.5px;display:none;align-items:center;justify-content:center;padding:0 4px;
+}
+.tab .dot.show{display:flex;animation:dotPop .3s cubic-bezier(.34,1.56,.64,1) both;}
+/* 收藏角标数字变化时的小弹跳：一眼就知道「又变了」 */
+@keyframes dotPop{0%{transform:scale(.4);}70%{transform:scale(1.25);}100%{transform:scale(1);}}
+
+/* ============================================================
+   二级页通用（详情 / 博主 / 收藏）
+   ============================================================ */
+.page{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  padding-top:calc(58px + env(safe-area-inset-top));/* 给二级页顶栏让位，内容不被盖住 */
+  padding-bottom:30px;}
+.back-btn,.head-btn{
+  width:38px;height:38px;border-radius:50%;border:2px solid rgba(232,176,140,.5);
+  background:var(--paper);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;flex:0 0 auto;
+}
+.back-btn:active{transform:scale(.9);background:var(--butter-soft);}
+/* ---------- 店铺详情页已移除：点店铺直接跳博主主页的视频卡 ---------- */
+/* 博主头像支持图片 */
+.blogger-hero .ava img{
+  width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;
+}
+/* 收藏页封面卡的取消收藏按钮 */
+.fav-x{
+  margin-top:7px;height:27px;padding:0 11px;border-radius:14px;cursor:pointer;
+  border:1.5px solid rgba(240,78,119,.4);background:#fff;color:var(--pink);
+  font-family:var(--round);font-weight:800;font-size:10.5px;letter-spacing:.05em;transition:all .2s;
+}
+.fav-x:active{background:var(--pink);color:#fff;}
+
+/* ---------- 视频卡操作按钮（点封面出现：查看视频 / 导航前去） ---------- */
+.wf-actions{position:absolute;left:7px;right:7px;top:7px;z-index:3;display:none;gap:6px;}
+.wf-card.show-actions .wf-actions{display:flex;}
+.wf-act{
+  flex:1;height:32px;border:none;border-radius:12px;cursor:pointer;text-decoration:none;
+  font-family:var(--round);font-weight:800;font-size:11.5px;letter-spacing:.04em;
+  background:rgba(255,253,249,.95);color:var(--pink-deep);
+  box-shadow:0 4px 12px rgba(74,55,40,.28);
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  transition:transform .15s;white-space:nowrap;
+}
+.wf-act:active{transform:scale(.94);}
+.wf-act.nav{color:#1F7D66;}
+/* 被定位聚焦的卡片：粉色描边提醒用户看这里 */
+.wf-card.focus{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-soft),var(--shadow-soft);}
+
+/* ---------- 博主主页 ---------- */
+.blogger-hero{
+  padding:18px;display:flex;align-items:center;gap:14px;
+  background:linear-gradient(160deg,#FFE3EA 0%,#FFF3D6 100%);
+  border-bottom:2.5px dashed rgba(232,176,140,.5);
+}
+.blogger-hero .ava{width:64px;height:64px;border-radius:22px;flex:0 0 auto;
+  background:var(--paper);border:3px solid #fff;box-shadow:var(--shadow-soft);
+  display:flex;align-items:center;justify-content:center;font-size:32px;}
+.blogger-hero .bn{font-family:var(--cute);font-size:20px;letter-spacing:.1em;}
+.blogger-hero .bd{font-size:11.5px;color:var(--ink-soft);font-weight:700;margin-top:3px;letter-spacing:.06em;}
+.blogger-tabs{display:flex;gap:12px;padding:12px 18px 4px;align-items:center;flex-wrap:wrap;}
+.sort-chip{
+  height:30px;padding:0 14px;border-radius:15px;border:1.5px solid rgba(232,176,140,.4);
+  background:var(--paper);font-family:var(--cute);font-size:12.5px;letter-spacing:.1em;color:var(--ink-soft);
+  cursor:pointer;transition:all .2s;
+}
+.sort-chip.on{background:var(--pink);border-color:var(--pink-deep);color:#fff;}
+.wf{columns:2;column-gap:10px;padding:12px 14px 30px;}
+.wf-card{
+  break-inside:avoid;margin-bottom:10px;background:var(--paper);
+  border:2px solid rgba(232,176,140,.4);border-radius:16px;overflow:hidden;
+  cursor:pointer;transition:transform .2s;animation:itemIn .45s cubic-bezier(.22,1,.36,1) both;
+}
+.wf-card:active{transform:scale(.97);}
+/* ---------- 博主主页卡片翻牌：点一下翻到背面看探店笔记 + 按钮 ---------- */
+.flip-card{border:none;background:transparent;overflow:visible;perspective:1000px;}
+/* 翻牌卡片按下时不整体缩放（避免和翻转动画叠加），描边改到面层上 */
+.flip-card:active,.flip-card.flipped:active{transform:none;}
+.flip-card.focus .flip-face{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-soft),var(--shadow-soft);}
+.flip-card .flip-inner{position:relative;transform-style:preserve-3d;
+  transition:transform .55s cubic-bezier(.22,1,.36,1);will-change:transform;}
+.flip-card.flipped .flip-inner{transform:rotateY(180deg);}
+.flip-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:var(--paper);border:2px solid rgba(232,176,140,.4);border-radius:16px;overflow:hidden;}
+.flip-front{position:relative;}
+.flip-back{position:absolute;inset:0;transform:rotateY(180deg);
+  display:flex;flex-direction:column;gap:8px;padding:10px 11px 12px;}
+/* 标题行：只有「📝 探店笔记」，不再放返回按钮（点卡片本身就能翻回去） */
+.fb-head{flex:0 0 auto;display:flex;align-items:center;gap:6px;}
+/* 标题和图标一起放大：由原来的 12px 提到 17px，emoji 会跟着字号一起变大 */
+.fb-title{font-family:var(--cute);font-size:17px;letter-spacing:.08em;color:var(--pink-deep);}
+/* 笔记正文字号比「探店笔记」标题（17px）小一档，读起来不抢标题 */
+.fb-note{flex:1 1 auto;min-height:0;overflow-y:auto;text-align:left;
+  font-size:14px;line-height:1.75;color:var(--ink);letter-spacing:.02em;white-space:pre-wrap;}
+/* 两个按钮改上下结构：查看视频在上、导航前去在下；
+   胶囊加高到 40px、宽度收到卡片七成并居中——解决之前又扁又长的丑感 */
+.fb-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:9px;margin-top:auto;align-items:center;}
+.fb-actions .wf-act{position:static;width:72%;height:40px;font-size:12.5px;}
+/* ---------- 卡片封面：固定 3:4 竖版比例 ----------
+   用 padding-top:133.3333%（= 4/3）把高度撑出来，宽度由卡片宽度决定，
+   这样不管原图多大多小，封面框始终是 3:4，老一点的安卓微信内核也支持 */
+.wf-cover{position:relative;height:0;padding-top:133.3333%;overflow:hidden;
+  background:linear-gradient(160deg,#FFD9C4,#FFB3C6);}
+/* 图片铺满整个 3:4 框：
+   - 原图比框「宽」或「高」→ object-fit:cover 裁掉多余部分
+   - 原图比框「小」→ 自动等比放大到铺满（不变形）
+   - object-position:center 保证是「上下左右居中」裁剪 */
+.wf-cover img{position:absolute;top:0;left:0;width:100%;height:100%;
+  object-fit:cover;object-position:center center;display:block;}
+.wf-cover .emo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px;}
+.wf-cover .play{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:34px;height:34px;border-radius:50%;background:rgba(255,253,249,.85);
+  display:flex;align-items:center;justify-content:center;
+}
+.wf-cover .play svg{width:13px;height:13px;fill:var(--pink-deep);margin-left:2px;}
+.wf-badges{position:absolute;left:7px;right:7px;bottom:6px;display:flex;justify-content:space-between;gap:4px;}
+.wf-badge{
+  font-family:var(--round);font-weight:800;font-size:9.5px;letter-spacing:.04em;
+  background:rgba(255,253,249,.92);color:var(--pink-deep);padding:2px 7px;border-radius:8px;
+  white-space:nowrap;backdrop-filter:blur(4px);
+}
+.wf-badge.mint{color:#1F7D66;}
+.wf-info{padding:8px 10px 10px;}
+.wf-title{font-family:var(--round);font-weight:800;font-size:12.5px;color:var(--ink);
+  line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.wf-sub{margin-top:4px;font-size:10px;color:var(--ink-soft);font-weight:700;letter-spacing:.04em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* 营业时间单独一行：可换行完整显示，避免和分类/日期挤一行被截断 */
+.wf-hours{white-space:normal;line-height:1.55;}
+/* 电话一行：做成链接，点一下跳手机拨号 */
+.wf-tel a{color:#1F7D66;background:var(--mint-soft);padding:2px 7px;border-radius:8px;
+  text-decoration:none;display:inline-flex;align-items:center;gap:4px;
+  font-family:var(--round);font-weight:800;letter-spacing:.06em;}
+.wf-tel a svg{width:11px;height:11px;}
+
+/* ---------- 收藏页 ---------- */
+.fav-tip{
+  margin:12px 16px 0;padding:10px 14px;border-radius:14px;
+  background:var(--butter-soft);font-size:11px;color:#8A6A14;font-weight:700;line-height:1.8;letter-spacing:.03em;
+}
+
+/* ============================================================
+   筛选面板（底部弹层：排序 + 特色）
+   ============================================================ */
+/* visibility（视觉隐身）：弹窗收起动画播完后 0.38s 彻底隐藏。
+   只靠 transform 移出屏幕有个坑：切换页面时手机浏览器渲染一卡，
+   收起动画会被冻在半路，弹窗就残留在别的页面上。visibility 不参与
+   绘制，一旦生效元素就绝对画不出来，双保险。 */
+.panel-mask{position:absolute;inset:0;z-index:250;background:rgba(74,55,40,.35);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .3s,visibility 0s .3s;}
+.panel-mask.show{opacity:1;visibility:visible;pointer-events:auto;
+  transition:opacity .3s,visibility 0s;}
+.panel{
+  position:absolute;left:0;right:0;bottom:0;z-index:255;
+  background:var(--paper);border-radius:26px 26px 0 0;border-top:2.5px solid #E8B08C;
+  padding:16px 20px calc(22px + env(safe-area-inset-bottom));
+  transform:translateY(100%);visibility:hidden;
+  transition:transform .38s cubic-bezier(.22,1,.36,1),visibility 0s .38s;
+}
+.panel.show{transform:none;visibility:visible;
+  transition:transform .38s cubic-bezier(.22,1,.36,1),visibility 0s;}
+.panel .pt{font-family:var(--cute);font-size:16px;letter-spacing:.16em;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.panel .pg{margin-bottom:14px;}
+.panel .pl{font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--ink-soft);margin-bottom:8px;text-transform:uppercase;}
+.panel .opts{display:flex;flex-wrap:wrap;gap:7px;}
+.opt-chip{
+  height:34px;padding:0 14px;border-radius:17px;border:1.5px solid rgba(232,176,140,.45);
+  background:var(--bg);font-family:var(--round);font-weight:700;font-size:12.5px;color:var(--ink);
+  cursor:pointer;transition:all .2s;
+}
+.opt-chip.on{background:var(--pink);border-color:var(--pink-deep);color:#fff;
+  animation:chipTap .25s cubic-bezier(.34,1.56,.64,1) both;}
+/* 分类小按钮被选中时的小弹跳，手感更“脆” */
+@keyframes chipTap{0%{transform:scale(.92);}70%{transform:scale(1.06);}100%{transform:scale(1);}}
+.panel .done{
+  width:100%;height:46px;border:none;border-radius:23px;cursor:pointer;margin-top:4px;
+  background:linear-gradient(145deg,#FF8FA8,#F04E77);color:#fff;
+  font-family:var(--cute);font-size:15px;letter-spacing:.16em;
+  box-shadow:0 8px 18px rgba(240,78,119,.35),inset 0 -3px 0 rgba(160,40,80,.25);
+}
+
+/* Toast（屏幕正中间，上下左右都居中，点收藏/取消收藏的提示一眼可见） */
+.toast{position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-50%) scale(.92);z-index:300;
+  background:var(--ink);color:#FFF9F2;font-size:12px;font-weight:700;letter-spacing:.08em;
+  padding:10px 20px;border-radius:20px;box-shadow:var(--shadow-pop);
+  opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;
+  max-width:82%;text-align:center;line-height:1.7;}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+
+/* 翻页条（固定在底部 Tab 栏上方，不随列表滚动，任何抽屉高度都可点） */
+.sheet-pager{position:absolute;left:0;right:0;
+  bottom:calc(64px + env(safe-area-inset-bottom));
+  display:none;align-items:center;justify-content:center;gap:12px;
+  padding:6px 0;background:rgba(255,253,249,.92);
+  border-top:1.5px dashed rgba(232,176,140,.35);}
+.sheet-pager.show{display:flex;}
+.sheet-pager .pg{height:30px;padding:0 13px;border-radius:15px;border:1.5px solid rgba(232,176,140,.5);
+  background:var(--paper);font-family:var(--round);font-weight:800;font-size:11.5px;color:var(--ink);
+  cursor:pointer;transition:all .2s;}
+.sheet-pager .pg:active{background:var(--pink);color:#fff;border-color:var(--pink-deep);}
+.sheet-pager .pg.disabled{opacity:.35;pointer-events:none;}
+.sheet-pager .pg-info{font-family:var(--round);font-weight:800;font-size:11.5px;color:var(--ink-soft);
+  letter-spacing:.12em;}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- ============ 地图页 ============ -->
+  <div class="view on" id="viewMap">
+    <div id="map"></div>
+    <div class="map-fallback" id="mapFallback">
+      <div class="fallback-inner">
+        <div class="bowl">🍜</div>
+        <div class="t">小店准备中</div>
+        <div class="d">博主配好高德 Key 后<br>这里会摆满一整张美味地图</div>
+      </div>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" id="brandLogo">🍙</div>
+        <span class="cn" id="blogName">探店<b>·</b>美食地图</span>
+      </div>
+      <div class="loc-sel">
+        <select class="mini-select" id="citySelect"><option value="">全部城市</option></select>
+        <select class="mini-select" id="districtSelect"><option value="">全部区域</option></select>
+      </div>
+    </header>
+
+    <div class="filter-card" id="filterCard">
+      <div class="search-row">
+        <div class="search-ico">🔍</div>
+        <div class="search-box">
+          <input id="searchInput" type="text" placeholder="想吃点什么？搜搜看" autocomplete="off">
+        </div>
+      <button class="clear-btn" id="btnClear" aria-label="清空">✕</button>
+    </div>
+    <button class="near-chip" id="nearChip">📍 只看附近 5 公里 · 点击取消</button>
+  </div>
+
+  <!-- 筛选悬浮按钮（附近按钮上方） -->
+  <button class="filter-fab" id="btnFilter" aria-label="筛选">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h13M20 17h0.01"/><circle cx="16" cy="7" r="2"/><circle cx="7" cy="12" r="2"/><circle cx="18.5" cy="17" r="2"/></svg>
+    筛选
+  </button>
+
+    <button class="locate-fab" id="btnLocate" aria-label="定位到附近">
+      <span class="ring"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="7.5"/></svg>
+      附近
+    </button>
+
+    <div class="sheet" id="shopSheet">
+      <div class="grabber" id="sheetGrab"><i></i><span class="tip" id="sheetTip">点击展开</span></div>
+      <div class="sheet-head" id="sheetHead">
+        <span class="title">🍡 探过的铺子<em>Guide</em></span>
+        <span class="count" id="listCount">0 家</span>
+      </div>
+      <div class="sheet-list" id="shopList"></div>
+      <!-- 翻页条：店铺多于一页时出现（每页最多 8 家，翻页不遮地图） -->
+      <div class="sheet-pager" id="listPager">
+        <button class="pg" id="pagerPrev">‹ 上一页</button>
+        <span class="pg-info" id="pagerInfo">1 / 1</span>
+        <button class="pg" id="pagerNext">下一页 ›</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 店铺详情页已移除：点店铺直接跳博主主页 ============ -->
+  <!-- ============ 博主主页 ============ -->
+  <div class="view" id="viewBlogger">
+    <!-- 顶栏：在滚动容器 .page 外面用 absolute 钉在视口顶部，不随内容滚动 -->
+    <div class="sub-topbar">
+      <div class="brand">
+        <div class="logo" id="bPageLogo">🍙</div>
+        <span class="cn" id="bPageName">探店<b>·</b>美食地图</span>
+      </div>
+      <span class="sub-title" id="bMeta">🎀 博主主页</span>
+    </div>
+    <div class="page">
+      <div class="blogger-tabs" style="padding-top:14px;">
+        <button class="sort-chip on" data-sort="new">✨ 最新探店</button>
+        <button class="sort-chip" data-sort="near">📍 离我最近</button>
+      </div>
+      <div class="wf" id="bGrid"></div>
+    </div>
+  </div>
+
+  <!-- ============ 收藏页 ============ -->
+  <div class="view" id="viewFavs">
+    <!-- 顶栏：在滚动容器 .page 外面用 absolute 钉在视口顶部，不随内容滚动 -->
+    <div class="sub-topbar">
+      <div class="brand">
+        <div class="logo" id="fPageLogo">🍙</div>
+        <span class="cn" id="fPageName">探店<b>·</b>美食地图</span>
+      </div>
+      <span class="sub-title">❤️ 我的收藏</span>
+    </div>
+    <div class="page">
+      <div class="fav-tip">💡 收藏保存在你手机的浏览器（微信）里，清理微信缓存会丢失，换手机不会跟着走哦。</div>
+      <div id="favList" style="padding:6px 0 20px;"></div>
+    </div>
+  </div>
+
+  <!-- ============ 底部 Tab ============ -->
+  <div class="tabbar" id="tabbar">
+    <button class="tab on" data-tab="map"><span class="ico">🗺️</span>地图</button>
+    <button class="tab" data-tab="favs"><span class="ico">❤️</span>收藏<span class="dot" id="favDot">0</span></button>
+    <button class="tab" data-tab="blogger"><span class="ico">🎀</span>博主</button>
+  </div>
+
+  <!-- ============ 筛选面板 ============ -->
+  <div class="panel-mask" id="panelMask"></div>
+  <div class="panel" id="filterPanel">
+    <div class="pt">⚙ 挑一挑</div>
+    <div class="pg">
+      <div class="pl">吃什么</div>
+      <div class="opts" id="catOpts"></div>
+    </div>
+    <div class="pg">
+      <div class="pl">怎么排</div>
+      <div class="opts" id="sortOpts">
+        <button class="opt-chip on" data-sort="distance">📍 离我最近</button>
+        <button class="opt-chip" data-sort="priceAsc">💰 人均最低</button>
+        <button class="opt-chip" data-sort="priceDesc">💎 人均最高</button>
+      </div>
+    </div>
+    <div class="pg">
+      <div class="pl">什么场合</div>
+      <div class="opts" id="sceneOpts">
+        <button class="opt-chip on" data-scene="">🎉 不限</button>
+        <button class="opt-chip" data-scene="一人食">🍜 一人食</button>
+        <button class="opt-chip" data-scene="多人聚餐">🍻 多人聚餐</button>
+        <button class="opt-chip" data-scene="情侣约会">💕 情侣约会</button>
+      </div>
+    </div>
+    <button class="done" id="panelDone">好啦，就这样看！</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ============ 开门动效 ============ -->
+  <div class="doors" id="doors">
+    <div class="door-stage" id="doorStage">
+      <div class="door-frame">
+        <div class="door door-left"><div class="door-panel">觅</div><span class="door-handle"></span></div>
+        <div class="door door-right"><div class="door-panel">食</div><span class="door-handle"></span></div>
+      </div>
+      <div class="door-label">小店开门啦<small>Food Map</small></div>
+      <div class="door-status" id="doorStatus">准备中…</div>
+      <div class="door-err" id="doorErr">
+        <div class="emo">😳</div>
+        <div class="t" id="doorErrTitle">还没开门</div>
+        <div class="d" id="doorErrBody"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="data/shops.js"></script>
+<script src="config.js"></script>
+<script>
+/* ============================================================
+   粉丝前台 · 全部逻辑（纯前端，无后端）
+   - 数据：data/shops.js（window.SHOPS_DATA），file:// 也能加载
+   - 收藏：localStorage（微信内置浏览器支持）
+   - 附近：定位后只看 5 公里内
+   - B站视频：提取 BV 号，页面内直接播放；小红书：跳转
+   ============================================================ */
+(function(){
+  var CFG = window.FOOD_MAP_CONFIG || {};
+  var $ = function(id){ return document.getElementById(id); };
+
+  var NEARBY_KM = 5;
+  var FOODS = ['🍜','🍰','🍔','🍣','🧋','🥟','🍙','🍦'];
+  /* 分类图标：以 config.js 的 CATEGORIES 为准（图钉/列表/chips 全用它） */
+  var CAT_EMOJI = {};
+  (CFG.CATEGORIES || []).forEach(function(c){ CAT_EMOJI[c.name] = c.emoji; });
+
+  /* 博主信息（单博主模式）：来自 data/shops.js 的 BLOGGER_INFO，博主后台可改 */
+  var BINFO = (window.BLOGGER_INFO && window.BLOGGER_INFO.name)
+    ? window.BLOGGER_INFO
+    : { name: String(CFG.BLOG_NAME || '探店博主'), avatar: '' };
+  var AVATARS = ['👩‍🍳','🧑‍🍳','🕵️‍♀️','🐱','🐰','🦊','🐼','🎀'];
+  var FAV_KEY = 'food-map-favs';
+
+  /* ---------- 状态 ---------- */
+  var shops = [];
+  var filtered = [];
+  var meMarker = null;
+  var map = null, mapReady = false, markerObjs = [];
+  var userPos = null;
+  /* 地图自动取景的四边留白 [上, 右, 下, 左]（像素）：
+     上=避开顶栏+搜索卡，下=避开底部店铺列表抽屉，让图钉不被挡住 */
+  var FIT_AVOID = [170, 30, 280, 30];
+  var kwPrev = false; // 上一轮是否处于「关键词搜索中」，用于识别「清空搜索」的时刻
+  var state = {
+    kw:'', city:'', district:'', category:'',
+    scene:'', // 适合场景（一人食/多人聚餐/情侣约会），'' = 不限
+    sort:'distance', nearby:false,
+    blogger:null, bloggerSort:'new',
+    page: 1        // 店铺列表当前第几页（配合翻页条）
+  };
+  var PAGE_SIZE = 8; // 每页显示多少家：手机上一屏 8 家信息量合适、翻页不累
+  var favs = loadFavs();
+
+  /* 「挑一挑」弹窗的待选草稿：在弹窗里点选项只改这里（不高亮列表），
+     点「好啦，就这样看！」才把草稿一次性应用到 state，筛选真正生效 */
+  var pendingPick = { category:'', sort:'distance', scene:'' };
+  /* 把某组选项里值匹配的小按钮点亮（其它熄灭），attr 如 'data-cat' */
+  function setChipOn(boxId, attr, val){
+    Array.prototype.forEach.call($(boxId).querySelectorAll('.opt-chip'), function(x){
+      x.classList.toggle('on', x.getAttribute(attr) === val);
+    });
+  }
+
+  /* ---------- 工具 ---------- */
+  function toast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  }
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function haversine(a, b){
+    var R = 6371, rad = Math.PI / 180;
+    var dLat = (b[1]-a[1])*rad, dLng = (b[0]-a[0])*rad;
+    var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(a[1]*rad)*Math.cos(b[1]*rad)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return 2 * R * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+  function fmtDist(km){ return km < 1 ? Math.round(km*1000) + ' m' : km.toFixed(1) + ' km'; }
+  function shopKey(s){ return s.name + '@' + (+s.lng).toFixed(5) + ',' + (+s.lat).toFixed(5); }
+  function foodEmoji(s){ return CAT_EMOJI[s.category] || FOODS[s._id % FOODS.length]; }
+  function bloggerName(s){ return BINFO.name; }
+  function bloggerAvatarHtml(){
+    return BINFO.avatar
+      ? '<img src="' + esc(BINFO.avatar) + '" alt="' + esc(BINFO.name) + '">'
+      : bloggerAva(BINFO.name);
+  }
+  function bloggerAva(name){
+    var h = 0;
+    for(var i = 0; i < name.length; i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+    return AVATARS[h % AVATARS.length];
+  }
+  function hasPrice(s){ return isFinite(+s.price) && +s.price > 0; }
+  function priceText(s){ return hasPrice(s) ? '¥' + (+s.price) + '/人' : ''; }
+  function distText(s){
+    if(!userPos) return '';
+    return fmtDist(haversine(userPos, [s.lng, s.lat]));
+  }
+  function bvOf(url){
+    var m = String(url || '').match(/BV[0-9A-Za-z]{8,12}/i);
+    return m ? m[0] : null;
+  }
+
+  /* ---------- 收藏（localStorage，微信内置浏览器可用） ---------- */
+  function loadFavs(){
+    try{
+      var raw = localStorage.getItem(FAV_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+  }
+  function saveFavs(){
+    try{ localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }catch(e){}
+  }
+  function isFav(s){ return favs.indexOf(shopKey(s)) >= 0; }
+  function toggleFav(s){
+    var k = shopKey(s);
+    var i = favs.indexOf(k);
+    if(i >= 0){ favs.splice(i, 1); toast('已从收藏里拿走「' + s.name + '」'); }
+    else { favs.push(k); toast('收藏啦！在「❤️ 收藏」里随时找到'); }
+    saveFavs();
+    updateFavDot();
+    renderList();
+  }
+  function favShops(){
+    return shops.filter(function(s){ return isFav(s); });
+  }
+  /* 有效收藏数：只统计「当前数据里还存在的店铺」。 */
+  function validFavCount(){
+    var valid = {};
+    shops.forEach(function(s){ valid[shopKey(s)] = 1; });
+    return favs.filter(function(k){ return valid[k]; }).length;
+  }
+  /* 清理「死收藏」：博主在后台删掉/大改了店铺后，本地收藏里的旧键
+     就再也对不上任何店铺，留着只会让角标数字虚高。数据一加载完就把它清掉。 */
+  function cleanDeadFavs(){
+    var valid = {};
+    shops.forEach(function(s){ valid[shopKey(s)] = 1; });
+    var before = favs.length;
+    favs = favs.filter(function(k){ return valid[k]; });
+    if(favs.length !== before) saveFavs(); // 真删掉东西才写回存储
+  }
+  function updateFavDot(){
+    var n = validFavCount(); // 用有效收藏数替代 favs.length
+    var dot = $('favDot');
+    dot.textContent = n > 99 ? '99+' : n;
+    dot.classList.toggle('show', n > 0);
+  }
+
+  /* ---------- 开门动效 ---------- */
+  function openDoors(){
+    var d = $('doors');
+    d.classList.add('open');
+    _doorOpening = true;
+    playDoorSound();
+    setTimeout(function(){ d.classList.add('fade'); }, 780);
+    setTimeout(function(){ d.classList.add('gone'); _doorOpening = false; }, 1350);
+  }
+  function showDoorError(title, html){
+    $('doorStage').style.display = 'none';
+    $('doorErrTitle').textContent = title;
+    $('doorErrBody').innerHTML = html;
+    $('doorErr').classList.add('show');
+  }
+  function setStatus(t){ var el = $('doorStatus'); if(el) el.textContent = t; }
+
+  /* ---------- 开门音效（轻、可闻；移动端需首次手势解锁音频） ---------- */
+  var _actx = null, _doorOpening = false, _doorSoundPlayed = false;
+  function _getCtx(){
+    if(!_actx){
+      try{ _actx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ _actx = null; }
+    }
+    return _actx;
+  }
+  function _softNote(ctx, freq, start, dur, peak, type){
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(peak, start + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(start); o.stop(start + dur + 0.03);
+  }
+  function playDoorSound(){
+    var ctx = _getCtx();
+    if(!ctx) return;
+    if(ctx.state === 'suspended'){
+      // 移动端 / 部分桌面：无用户手势时音频被挂起，resume 后仍 suspended 则放弃本次（等首次手势再放）
+      try{ ctx.resume(); }catch(e){}
+      if(ctx.state === 'suspended') return;
+    }
+    var now = ctx.currentTime;
+    _softNote(ctx, 168, now, 0.16, 0.11, 'triangle');   // 轻轻一声“咚”，开门
+    _softNote(ctx, 660, now + 0.10, 0.50, 0.05, 'sine');  // 随后两声柔和铃音
+    _softNote(ctx, 988, now + 0.17, 0.55, 0.04, 'sine');
+    _doorSoundPlayed = true;
+  }
+  function _unlockAudio(){
+    var ctx = _getCtx();
+    if(ctx && ctx.state === 'suspended'){
+      ctx.resume().then(function(){
+        if(_doorOpening && !_doorSoundPlayed) playDoorSound();
+      }).catch(function(){});
+    }
+    ['pointerdown','touchstart','keydown','click'].forEach(function(ev){
+      document.removeEventListener(ev, _unlockAudio);
+    });
+  }
+  ['pointerdown','touchstart','keydown','click'].forEach(function(ev){
+    document.addEventListener(ev, _unlockAudio, { passive: true });
+  });
+
+  /* ---------- 数据加载 ---------- */
+  function normalize(list){
+    shops = (Array.isArray(list) ? list : [])
+      .filter(function(s){ return s && s.name && isFinite(+s.lat) && isFinite(+s.lng); })
+      .map(function(s, i){ s._id = i; return s; });
+  }
+  function loadShops(){
+    setStatus('上菜中…');
+    if(window.SHOPS_DATA && Array.isArray(window.SHOPS_DATA)){
+      return Promise.resolve(normalize(window.SHOPS_DATA));
+    }
+    return fetch('data/shops.json?t=' + Date.now())
+      .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(normalize);
+  }
+
+  /* ---------- 地图 ---------- */
+  function initMap(){
+    if(!window.AMap){ return false; }
+    map = new AMap.Map('map', {
+      zoom: CFG.MAP_ZOOM || 11,
+      center: CFG.MAP_CENTER || [118.12, 24.51],
+      mapStyle: CFG.MAP_STYLE || 'amap://styles/fresh',
+      viewMode: '2D',
+      zooms: [4, 18],
+      /* 显式开启双击放大：部分微信内核会把快速双击自己吃掉，
+         不显式声明的话地图收不到第二次点击，表现就像"双击没反应" */
+      doubleClickZoom: true
+      // 双指缩放/拖动为默认手势，无需额外开启
+    });
+    mapReady = true;
+    return true;
+  }
+  function fallbackMode(){ $('mapFallback').classList.add('show'); }
+
+  function pinHtml(s, active){
+    return '<div class="pin' + (active ? ' active' : '') + '">' +
+      '<div class="badge"><i>' + foodEmoji(s) + '</i></div><div class="shadow"></div></div>';
+  }
+  function renderMarkers(){
+    if(!mapReady) return;
+    markerObjs.forEach(function(m){ map.remove(m); });
+    markerObjs = [];
+    filtered.forEach(function(s){
+      // 图钉上方常显店名标签（最多 5 个字）
+      var shortName = esc(String(s.name || '').slice(0, 5));
+      var html = pinHtml(s, false) + '<span class="pin-label">' + shortName + '</span>';
+      var mk = new AMap.Marker({
+        position: [s.lng, s.lat],
+        content: html,
+        anchor: 'bottom-center',
+        zIndex: 110
+      });
+      mk._shopId = s._id;
+      // 点图钉：跳到博主主页，把这条探店的视频卡滑到屏幕中间
+      mk.on('click', function(){ focusShop(s._id); });
+      markerObjs.push(mk);
+      map.add(mk);
+    });
+  }
+
+  /* ---------- 筛选/排序 ---------- */
+  function applyFilter(){
+    var kw = state.kw.trim().toLowerCase();
+    state.page = 1; // 筛选条件一变，店铺列表回到第 1 页（不然停在旧条件的高页码上）
+    filtered = shops.filter(function(s){
+      if(state.city && (s.city || '其他') !== state.city) return false;
+      if(state.district && s.district !== state.district) return false;
+      if(state.category && s.category !== state.category) return false;
+      /* 场景筛选：博主后台选了「适合场景」的店才会被挑出来；
+         店没填 scene 或填的是「不限」，只在不限场合时出现 */
+      if(state.scene && (s.scene || '') !== state.scene) return false;
+      if(kw && (String(s.name) + ' ' + String(s.note||'')).toLowerCase().indexOf(kw) < 0) return false;
+      if(state.nearby){
+        if(!userPos) return true; // 没定位成功就不按范围过滤
+        if(haversine(userPos, [s.lng, s.lat]) > NEARBY_KM) return false;
+      }
+      return true;
+    });
+    var byDate = function(a, b){
+      return String(b.date || '').localeCompare(String(a.date || ''));
+    };
+    var byDist = function(a, b){
+      if(!userPos) return byDate(a, b);
+      return haversine(userPos, [a.lng, a.lat]) - haversine(userPos, [b.lng, b.lat]);
+    };
+    if(state.sort === 'distance') filtered.sort(byDist);
+    else if(state.sort === 'priceAsc') filtered.sort(function(a, b){
+      return (hasPrice(a) ? +a.price : 1e9) - (hasPrice(b) ? +b.price : 1e9);
+    });
+    else if(state.sort === 'priceDesc') filtered.sort(function(a, b){
+      return (hasPrice(b) ? +b.price : -1) - (hasPrice(a) ? +a.price : -1);
+    });
+    else filtered.sort(byDist); // 兜底：有定位按距离，否则按最新
+    $('nearChip').classList.toggle('show', state.nearby);
+    if(state.nearby){
+      $('nearChip').textContent = userPos
+        ? '📍 只看附近 ' + NEARBY_KM + ' 公里 · ' + filtered.length + ' 家 · 点击取消'
+        : '📍 只看附近 ' + NEARBY_KM + ' 公里（等定位中）· 点击取消';
+    }
+    var filterOn = !!state.category;
+    $('btnFilter').classList.toggle('has', filterOn);
+    syncClearBtn();
+    renderList();
+    renderMarkers();
+    /* ---------- 搜索联动地图视野 ----------
+       输入关键词有结果时：自动缩放地图，让所有结果图钉一屏看完
+       （比如岛内 1 家 + 同安 1 家，地图会自动拉远把两个都框进来）；
+       清空搜索时：恢复到当前筛选结果的全景。
+       只有「搜索」会触发，平时切分类/切城市不打扰用户手动拖的地图。 */
+    if(mapReady && filtered.length){
+      if(kw){
+        if(filtered.length === 1){
+          // 只有一个搜索结果：把地图中心对准这家店（左右居中），
+          // 缩放到街区级别，一眼就看到它在哪
+          var only = filtered[0];
+          map.setZoomAndCenter(16, [only.lng, only.lat], false, 420);
+        } else {
+          // 多个结果：拉远视野，让所有图钉一屏看完
+          map.setFitView(markerObjs, false, FIT_AVOID);
+        }
+      } else if(kwPrev){
+        map.setFitView(markerObjs, false, FIT_AVOID);
+      }
+    }
+    kwPrev = !!kw;
+  }
+
+  function buildFilters(){
+    // 城市 / 区域（右上角）
+    var cs = $('citySelect'), seen = {}, opts = ['<option value="">全部城市</option>'];
+    shops.forEach(function(s){
+      var c = s.city || '其他';
+      if(!seen[c]){ seen[c] = 1; opts.push('<option value="' + esc(c) + '">' + esc(c) + '</option>'); }
+    });
+    cs.innerHTML = opts.join('');
+    cs.onchange = function(){
+      state.city = cs.value; rebuildDistricts(); applyFilter();
+      /* 跨城市切换 = 大范围跳跃，地图必须跟着飞过去：
+         有店 → 自动取景把该城市所有图钉框进视野（maxZoom 14 防单店放太大）；
+         该城市没店 → 地图留在原地，用提示告诉用户为什么没变化 */
+      if(mapReady){
+        if(filtered.length){
+          map.setFitView(markerObjs, false, FIT_AVOID, 14);
+        } else if(state.city){
+          toast('「' + state.city + '」还没有探过店哦');
+        }
+      }
+    };
+    $('districtSelect').onchange = function(){
+      state.district = $('districtSelect').value; applyFilter();
+    };
+    rebuildDistricts();
+    // 分类选项（在「挑一挑」弹窗里）
+    var catSeen = {}, cats = [];
+    shops.forEach(function(s){ if(s.category && !catSeen[s.category]){ catSeen[s.category] = 1; cats.push(s.category); } });
+    var cc = $('catOpts');
+    cc.innerHTML = '<button class="opt-chip on" data-cat="">😋 全部</button>' + cats.map(function(c){
+      return '<button class="opt-chip" data-cat="' + esc(c) + '">' + (CAT_EMOJI[c] || '🍽️') + ' ' + esc(c) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(cc.querySelectorAll('[data-cat]'), function(el){
+      el.onclick = function(){
+        // 只改草稿、只换高亮，不马上筛选——等「好啦，就这样看！」统一生效
+        pendingPick.category = el.getAttribute('data-cat');
+        Array.prototype.forEach.call(cc.querySelectorAll('.opt-chip'), function(x){ x.classList.remove('on'); });
+        el.classList.add('on');
+      };
+    });
+  }
+  function rebuildDistricts(){
+    var c = state.city, seen = {}, opts = ['<option value="">全部区域</option>'];
+    shops.forEach(function(s){
+      if(c && (s.city || '其他') !== c) return;
+      if(s.district && !seen[s.district]){
+        seen[s.district] = 1;
+        opts.push('<option value="' + esc(s.district) + '">' + esc(s.district) + '</option>');
+      }
+    });
+    var ds = $('districtSelect');
+    ds.innerHTML = opts.join('');
+    ds.value = state.district = '';
+  }
+  function syncClearBtn(){
+    $('btnClear').classList.toggle('show',
+      state.kw || state.city || state.district || state.category || state.scene);
+  }
+
+  /* ---------- 列表 ---------- */
+  /* 「探过的铺子」店名限宽显示：
+     - 全角字符（汉字/日文假名/全角括号）算 1，半角字母数字算 0.5；
+     - 超过 NAME_MAX_W（按汉字位计）就截断加省略号「…」，
+       并自动去掉截断后悬空的半个括号，所有手机截断位置一致；
+     - 想调显示字数：改下面 NAME_MAX_W 的数字即可（例：鮨冠OMAKASE食べ放題(厦门首店)
+       视觉宽约 15.5，设 13 时显示「鮨冠OMAKASE食べ放題(厦门…」）。 */
+  var NAME_MAX_W = 13;
+  function charW(ch){
+    var c = ch.charCodeAt(0);
+    return (c >= 0x1100 && (c <= 0x115F || (c >= 0x2E80 && c <= 0xA4CF && c !== 0x303F) ||
+      (c >= 0xAC00 && c <= 0xD7A3) || (c >= 0xF900 && c <= 0xFAFF) ||
+      (c >= 0xFE30 && c <= 0xFE6F) || (c >= 0xFF00 && c <= 0xFF60) ||
+      (c >= 0xFFE0 && c <= 0xFFE6))) ? 1 : 0.5;
+  }
+  function truncateName(name){
+    name = String(name || '');
+    var w = 0, out = '';
+    for(var i = 0; i < name.length; i++){
+      var cw = charW(name[i]);
+      if(w + cw > NAME_MAX_W - 1) break;   // 预留 1 个汉字位给省略号
+      out += name[i];
+      w += cw;
+    }
+    if(out.length < name.length){
+      out = out.replace(/[\(（\[【「『]+\s*$/, ''); // 去掉悬空的半个括号/引号
+      return esc(out) + '…';
+    }
+    return esc(name);
+  }
+  function itemHtml(s, i, opts){
+    opts = opts || {};
+    var dist = distText(s);
+    var price = priceText(s);
+    var favBtn = opts.favBtn
+      ? '<button class="fav' + (isFav(s) ? ' on' : '') + '" data-fav="' + s._id + '">' + (isFav(s) ? '❤️' : '🤍') + '</button>'
+      : '';
+    var right = '<div class="right">' +
+      (dist ? '<span class="dist">' + dist + '</span>' : '') + favBtn + '</div>';
+    /* 电话：转成 tel: 链接，粉丝点一下直接跳到手机拨号盘并预填号码 */
+    var telLink = s.phone
+      ? '<a class="tel" data-tel="1" href="tel:' + esc(String(s.phone).replace(/[^0-9+\- ]/g, '')) + '">' +
+        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>' +
+        esc(s.phone) + '</a>'
+      : '';
+    return '<div class="shop-item" data-id="' + s._id + '" style="animation-delay:' + Math.min(i*40, 320) + 'ms">' +
+      '<div class="info">' +
+        /* 第一行：店名（超长自动截断加…） */
+        '<div class="name">' + truncateName(s.name) + '</div>' +
+        /* 第二行：区域在最前，再接分类、人均 */
+        '<div class="sub">' +
+          (s.district ? '<span class="pl">' + esc(s.district) + '</span>' : '') +
+          (s.category ? esc(s.category) : '') +
+          (price ? '<span class="price">' + price + '</span>' : '') +
+        '</div>' +
+        /* 第三行：营业时间 */
+        (s.hours ? '<div class="meta"><span class="hours">🕐 ' + esc(s.hours) + '</span></div>' : '') +
+        /* 第四行：电话独占一行（点号码可拨号） */
+        (telLink ? '<div class="meta">' + telLink + '</div>' : '') +
+      '</div>' + right + '</div>';
+  }
+  function renderList(){
+    var box = $('shopList');
+    $('listCount').textContent = filtered.length + ' 家';
+    var pager = $('listPager');
+    if(!filtered.length){
+      box.innerHTML = '<div class="empty-tip"><span class="big">🍽️</span>' +
+        (shops.length ? '这一带还没探过店，换个筛选试试' : '博主的第一家探店马上就来') +
+        '<span class="en">Nothing Here Yet</span></div>';
+      pager.classList.remove('show');
+      return;
+    }
+    // ---------- 分页切片 ----------
+    // 店铺多于一页时才需要翻页；每页固定 PAGE_SIZE 家
+    var pages = Math.ceil(filtered.length / PAGE_SIZE);
+    if(state.page > pages) state.page = pages;   // 页码越界就退到最后一页
+    if(state.page < 1) state.page = 1;
+    var start = (state.page - 1) * PAGE_SIZE;
+    var pageList = filtered.slice(start, start + PAGE_SIZE);
+    box.innerHTML = pageList.map(function(s, i){
+      return itemHtml(s, i, { favBtn: true });
+    }).join('');
+    bindItems(box);
+    // ---------- 翻页条 ----------
+    pager.classList.toggle('show', pages > 1); // 只有一页就不显示翻页条
+    if(pages > 1){
+      $('pagerPrev').classList.toggle('disabled', state.page <= 1);
+      $('pagerNext').classList.toggle('disabled', state.page >= pages);
+      $('pagerInfo').textContent = state.page + ' / ' + pages;
+    }
+  }
+  function bindItems(box){
+    Array.prototype.forEach.call(box.querySelectorAll('.shop-item'), function(el){
+      el.onclick = function(e){
+        // 点收藏按钮 / 点电话链接不跳博主主页，只做各自的事
+        if(e.target.closest('[data-fav]')) return;
+        if(e.target.closest('[data-tel]')) return;
+        focusShop(+el.getAttribute('data-id'));
+      };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-fav]'), function(el){
+      el.onclick = function(e){
+        e.stopPropagation();
+        var s = shops[+el.getAttribute('data-fav')];
+        if(s) toggleFav(s);
+        var inFavView = currentTab() === 'favs';
+        if(inFavView) renderFavs(); else renderList();
+      };
+    });
+  }
+
+  /* ---------- 视图切换 ---------- */
+  function currentTab(){
+    return document.querySelector('.tabbar .tab.on').getAttribute('data-tab');
+  }
+  function showView(name){
+    // 切页前先收起挑一挑弹窗：它挂在全局层级，不收的话
+    // 个别手机上动画一卡，弹窗会残留在博主/收藏页底部
+    closePanel();
+    ['viewMap','viewBlogger','viewFavs'].forEach(function(id){
+      $(id).classList.toggle('on', id === 'view' + name.charAt(0).toUpperCase() + name.slice(1));
+    });
+    Array.prototype.forEach.call($('tabbar').querySelectorAll('.tab'), function(el){
+      el.classList.toggle('on', el.getAttribute('data-tab') === name);
+    });
+    window.scrollTo(0, 0);
+  }
+  function switchTab(name){
+    // 切底部 Tab（地图/收藏/博主）前，先收回「探过的铺子」抽屉，
+    // 不然展开的抽屉会盖住新页面的内容
+    collapseSheetIfOpen();
+    if(name === 'favs') renderFavs();
+    if(name === 'blogger') renderBloggerPage();
+    showView(name);
+  }
+
+  /* ---------- 视频封面 / 跳转 ---------- */
+  /* 策略：前台只展示封面，点击跳转 B站/小红书原链接，为平台增加播放量 */
+  var bvCache = {};
+  function fetchBiliInfo(bv, cb){
+    if(bvCache[bv] !== undefined){ cb(bvCache[bv]); return; }
+    try{
+      fetch('https://api.bilibili.com/x/web-interface/view?bvid=' + bv)
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          var info = (j && j.code === 0 && j.data) ? { pic: j.data.pic, title: j.data.title } : null;
+          bvCache[bv] = info;
+          try{ sessionStorage.setItem('bv-' + bv, JSON.stringify(info)); }catch(e){}
+          cb(info);
+        })
+        .catch(function(){ bvCache[bv] = null; cb(null); });
+    }catch(e){ cb(null); }
+  }
+  function coverUrl(s, cb){
+    if(s.cover){ cb(s.cover); return; }
+    var bv = bvOf(s.videoUrl);
+    if(!bv){ cb(null); return; }
+    if(bv in bvCache){ cb(bvCache[bv] ? bvCache[bv].pic : null); return; }
+    try{
+      var c = sessionStorage.getItem('bv-' + bv);
+      if(c !== null){ bvCache[bv] = JSON.parse(c); cb(bvCache[bv] ? bvCache[bv].pic : null); return; }
+    }catch(e){}
+    fetchBiliInfo(bv, function(info){ cb(info ? info.pic : null); });
+  }
+  /* 高德导航链接：手机浏览器/微信里会尝试唤起高德地图 App 并标记店铺位置 */
+  function navUrlOf(s){
+    return 'https://uri.amap.com/marker?position=' + (+s.lng) + ',' + (+s.lat) +
+      '&name=' + encodeURIComponent(s.name) +
+      '&src=foodmap&callnative=1&coordinate=gaode';
+  }
+
+  /* ---------- 点店铺 → 跳博主主页并居中定位到该视频卡 ---------- */
+  /* focusShop：切到博主主页，给目标卡片加粉色描边，再平滑滚动到屏幕垂直中间 */
+  function focusShop(id){
+    switchTab('blogger'); // 会重新渲染博主主页网格
+    var card = $('bGrid').querySelector('.wf-card[data-id="' + id + '"]');
+    if(!card) return;
+    Array.prototype.forEach.call(document.querySelectorAll('.wf-card.focus'), function(c){
+      c.classList.remove('focus');
+      c.classList.remove('show-actions');
+      c.classList.remove('flipped'); // 翻到背面的卡片也翻回正面
+    });
+    card.classList.add('focus');
+    // 等视图切换、卡片渲染完成后再滚动，否则高度还没算准
+    setTimeout(function(){ card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 120);
+  }
+  /* 点视频封面 → 显示/隐藏「查看视频 / 导航前去」按钮（同时收起其它卡片的按钮） */
+  function toggleCardActions(card){
+    var wasOpen = card.classList.contains('show-actions');
+    Array.prototype.forEach.call(document.querySelectorAll('.wf-card.show-actions'), function(c){
+      c.classList.remove('show-actions');
+    });
+    if(!wasOpen) card.classList.add('show-actions');
+  }
+
+  /* ---------- 博主主页（单博主模式：展示全部探店） ---------- */
+  function openBlogger(){
+    state.bloggerSort = 'new';
+    renderBloggerPage();
+    showView('blogger');
+  }
+  function renderBloggerPage(){
+    // 顶栏右侧只显示探店家数（「平均人均」对粉丝没参考意义，已去掉）
+    $('bMeta').textContent = '🎀 ' + shops.length + ' 家探店';
+    Array.prototype.forEach.call(document.querySelectorAll('#viewBlogger .sort-chip[data-sort]'), function(el){
+      el.classList.toggle('on', el.getAttribute('data-sort') === state.bloggerSort);
+    });
+    renderBloggerGrid();
+  }
+  function renderBloggerGrid(){
+    var list = shops.slice();
+    if(state.bloggerSort === 'near' && userPos){
+      list.sort(function(a, b){
+        return haversine(userPos, [a.lng, a.lat]) - haversine(userPos, [b.lng, b.lat]);
+      });
+    } else {
+      if(state.bloggerSort === 'near'){
+        toast('先点地图页右下角「附近」定位，才能按距离排');
+        state.bloggerSort = 'new';
+        Array.prototype.forEach.call(document.querySelectorAll('#viewBlogger .sort-chip[data-sort]'), function(el){
+          el.classList.toggle('on', el.getAttribute('data-sort') === 'new');
+        });
+      }
+      list.sort(function(a, b){
+        return String(b.date || '').localeCompare(String(a.date || ''));
+      });
+    }
+    var grid = $('bGrid');
+    if(!list.length){
+      grid.innerHTML = '<div class="empty-tip"><span class="big">🎀</span>这位博主还没开店哦<span class="en">Coming Soon</span></div>';
+      return;
+    }
+    grid.innerHTML = list.map(function(s, i){
+      var d = distText(s);
+      return '<div class="wf-card flip-card" data-id="' + s._id + '" style="animation-delay:' + Math.min(i*50, 400) + 'ms">' +
+        '<div class="flip-inner">' +
+          /* 正面：封面 + 店铺信息（和原来一样） */
+          '<div class="flip-face flip-front">' +
+            '<div class="wf-cover">' +
+              '<span class="emo">' + foodEmoji(s) + '</span>' +
+              (s.videoUrl ? '<span class="play"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span>' : '') +
+              '<div class="wf-badges">' +
+                (hasPrice(s) ? '<span class="wf-badge">¥' + (+s.price) + '/人</span>' : '<span></span>') +
+                (d ? '<span class="wf-badge mint">' + d + '</span>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div class="wf-info">' +
+              /* 按需求：正面只保留店铺名称，其余店铺信息（分类/日期/营业时间/电话）不再展示 */
+              '<div class="wf-title">' + esc(s.name) + '</div>' +
+            '</div>' +
+          '</div>' +
+          /* 背面：探店笔记 + 两个按钮（点卡片任意处即可翻回正面，所以不放返回按钮） */
+          '<div class="flip-face flip-back">' +
+            '<div class="fb-head">' +
+              '<span class="fb-title">📝 探店笔记</span>' +
+            '</div>' +
+            '<div class="fb-note">' + (s.note ? esc(s.note) : '博主这次没写笔记～') + '</div>' +
+            '<div class="fb-actions">' +
+              (s.videoUrl ? '<a class="wf-act" href="' + esc(s.videoUrl) + '" target="_blank" rel="noopener">▶ 查看视频</a>' : '') +
+              '<a class="wf-act nav" href="' + navUrlOf(s) + '" target="_blank" rel="noopener">🧭 导航前去</a>' +
+            '</div>' +
+          '</div>' +
+        '</div></div>';
+    }).join('');
+    // 封面：cover 字段或 B站封面（原始比例展示，竖版封面不裁切）
+    list.forEach(function(s){
+      coverUrl(s, function(url){
+        if(!url) return;
+        var card = grid.querySelector('.wf-card[data-id="' + s._id + '"] .wf-cover');
+        if(!card) return;
+        var img = document.createElement('img');
+        img.src = url;
+        img.alt = s.name;
+        img.onload = function(){
+          var emo = card.querySelector('.emo');
+          if(emo) emo.remove();
+          card.classList.add('has-img');
+          card.insertBefore(img, card.firstChild);
+        };
+      });
+    });
+    // 点击卡片：像卡牌一样翻面（正面看封面 → 背面看探店笔记和按钮）
+    // 规则一：同一时间只允许一张卡背面朝上
+    // 规则二：换卡时要「排队」——旧卡先翻回去，等它转完，新卡再翻过来（不重叠）
+    var FLIP_MS = 570;            // 翻牌动画时长，和 CSS 里 .flip-inner 的 .55s 对齐
+    var flipTimer = null;         // 排队等待中的定时器
+    var flipTarget = null;        // 排队等待中「等下要翻面」的那张卡
+    var flipBusyUntil = 0;        // 旧卡还要转多久（时间戳），在这之前不能开始新的翻转
+
+    // 清掉排队中的翻面（比如用户中途又点了别的卡，或点了取消）
+    function clearFlipWait(){
+      if(flipTimer){ clearTimeout(flipTimer); flipTimer = null; }
+      flipTarget = null;
+    }
+
+    Array.prototype.forEach.call(grid.querySelectorAll('.wf-card'), function(el){
+      el.onclick = function(e){
+        // 点电话链接只拨号，不翻牌
+        if(e.target.closest('[data-tel]') || e.target.closest('.wf-tel')) return;
+        // 点「查看视频/导航前去」按钮：正常跳转，不翻牌
+        if(e.target.closest('.wf-act')) return;
+
+        // 第一件事：这张卡「点之前」是不是已经背面朝上
+        var wasFlipped = el.classList.contains('flipped');
+
+        // 如果这张卡正在排队等翻转，用户又点了一次 → 认为他想取消，这次就不翻了
+        if(flipTarget === el){ clearFlipWait(); return; }
+
+        // 第二件事：看看现在有没有别的卡正翻着
+        var opened = grid.querySelector('.wf-card.flipped');
+        if(opened && opened !== el){
+          // 第一步：旧卡先翻回正面（播放它自己的 0.55s 动画）
+          opened.classList.remove('flipped');
+          // 记下「它转完的时刻」，后面新卡的翻转要等这个时间点
+          flipBusyUntil = Date.now() + FLIP_MS;
+        }
+
+        // 第三步：如果点的就是那张翻着的卡 → 直接翻回正面，不用等
+        if(wasFlipped){
+          clearFlipWait();
+          el.classList.remove('flipped');
+          return;
+        }
+
+        // 第四步：把这张卡翻到背面；如果旧卡还在转，就等它转完再翻
+        clearFlipWait();
+        var wait = Math.max(0, flipBusyUntil - Date.now());
+        if(wait > 0){
+          flipTarget = el;
+          flipTimer = setTimeout(function(){
+            flipTimer = null;
+            flipTarget = null;
+            el.classList.add('flipped');
+          }, wait);
+        }else{
+          el.classList.add('flipped');
+        }
+      };
+    });
+    // 点电话链接只拨号，不触发翻牌
+    Array.prototype.forEach.call(grid.querySelectorAll('.wf-tel a'), function(a){
+      a.onclick = function(e){ e.stopPropagation(); };
+    });
+  }
+
+  /* ---------- 收藏页（视频封面卡片） ---------- */
+  function renderFavs(){
+    var box = $('favList');
+    var list = favShops();
+    updateFavDot();
+    if(!list.length){
+      box.innerHTML = '<div class="empty-tip"><span class="big">🤍</span>还没有收藏的铺子<br>看到喜欢的店点一下小心心吧<span class="en">No Favorites Yet</span></div>';
+      return;
+    }
+    box.innerHTML = '<div class="wf">' + list.map(function(s, i){
+      var d = distText(s);
+      return '<div class="wf-card" data-id="' + s._id + '" style="animation-delay:' + Math.min(i*50, 400) + 'ms">' +
+        '<div class="wf-cover">' +
+          '<div class="wf-actions">' +
+            (s.videoUrl ? '<a class="wf-act" href="' + esc(s.videoUrl) + '" target="_blank" rel="noopener">▶ 查看视频</a>' : '') +
+            '<a class="wf-act nav" href="' + navUrlOf(s) + '" target="_blank" rel="noopener">🧭 导航前去</a>' +
+          '</div>' +
+          '<span class="emo">' + foodEmoji(s) + '</span>' +
+          (s.videoUrl ? '<span class="play"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span>' : '') +
+          '<div class="wf-badges">' +
+            (hasPrice(s) ? '<span class="wf-badge">¥' + (+s.price) + '/人</span>' : '<span></span>') +
+            (d ? '<span class="wf-badge mint">' + d + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="wf-info">' +
+          /* 与博主页卡片一致：只显示店铺名称（保留取消收藏按钮） */
+          '<div class="wf-title">' + esc(s.name) + '</div>' +
+          '<button class="fav-x" data-fav="' + s._id + '">💔 取消收藏</button>' +
+        '</div></div>';
+    }).join('') + '</div>';
+    // 封面：cover 字段或 B站封面（原始比例展示）
+    list.forEach(function(s){
+      coverUrl(s, function(url){
+        if(!url) return;
+        var card = box.querySelector('.wf-card[data-id="' + s._id + '"] .wf-cover');
+        if(!card) return;
+        var img = document.createElement('img');
+        img.src = url;
+        img.alt = s.name;
+        img.onload = function(){
+          var emo = card.querySelector('.emo');
+          if(emo) emo.remove();
+          card.classList.add('has-img');
+          card.insertBefore(img, card.firstChild);
+        };
+      });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('.wf-card'), function(el){
+      el.onclick = function(e){
+        if(e.target.closest('[data-fav]')) return;
+        // 点电话链接只拨号，不触发卡片的收起/展开
+        if(e.target.closest('[data-tel]') || e.target.closest('.wf-tel')) return;
+        toggleCardActions(el);
+      };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('.wf-act'), function(a){
+      a.onclick = function(e){ e.stopPropagation(); };
+    });
+    // 点电话链接只拨号，不触发卡片的收起/展开
+    Array.prototype.forEach.call(box.querySelectorAll('.wf-tel a'), function(a){
+      a.onclick = function(e){ e.stopPropagation(); };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-fav]'), function(el){
+      el.onclick = function(e){
+        e.stopPropagation();
+        var s = shops[+el.getAttribute('data-fav')];
+        if(s) toggleFav(s);
+        renderFavs();
+      };
+    });
+  }
+
+  /* ---------- 定位（附近 5km） ---------- */
+  /* 浏览器定位给的是 WGS-84 坐标，高德地图用 GCJ-02（国测局）坐标，
+     不纠偏在中国大陆会整体偏移约 500~700 米——这就是"定位不准"的主因 */
+  function wgs2gcj(lng, lat){
+    var a = 6378245.0, ee = 0.00669342162296594323;
+    function outOfChina(lng, lat){ return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271; }
+    function tLat(x, y){
+      var ret = -100.0 + 2.0*x + 3.0*y + 0.2*y*y + 0.1*x*y + 0.2*Math.sqrt(Math.abs(x));
+      ret += (20.0*Math.sin(6.0*x*Math.PI) + 20.0*Math.sin(2.0*x*Math.PI)) * 2.0 / 3.0;
+      ret += (20.0*Math.sin(y*Math.PI) + 40.0*Math.sin(y/3.0*Math.PI)) * 2.0 / 3.0;
+      ret += (160.0*Math.sin(y/12.0*Math.PI) + 320*Math.sin(y*Math.PI/30.0)) * 2.0 / 3.0;
+      return ret;
+    }
+    function tLng(x, y){
+      var ret = 300.0 + x + 2.0*y + 0.1*x*x + 0.1*x*y + 0.1*Math.sqrt(Math.abs(x));
+      ret += (20.0*Math.sin(6.0*x*Math.PI) + 20.0*Math.sin(2.0*x*Math.PI)) * 2.0 / 3.0;
+      ret += (20.0*Math.sin(x*Math.PI) + 40.0*Math.sin(x/3.0*Math.PI)) * 2.0 / 3.0;
+      ret += (150.0*Math.sin(x/12.0*Math.PI) + 300.0*Math.sin(x/30.0*Math.PI)) * 2.0 / 3.0;
+      return ret;
+    }
+    if(outOfChina(lng, lat)) return [lng, lat];
+    var dLat = tLat(lng - 105.0, lat - 35.0);
+    var dLng = tLng(lng - 105.0, lat - 35.0);
+    var radLat = lat / 180.0 * Math.PI;
+    var magic = Math.sin(radLat);
+    magic = 1 - ee * magic * magic;
+    var sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+    dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI);
+    return [lng + dLng, lat + dLat];
+  }
+  function locate(){
+    if(!mapReady){ toast('博主配好高德 Key 后才能定位哦'); return; }
+    if(!navigator.geolocation){ toast('当前浏览器不支持定位'); return; }
+    var btn = $('btnLocate');
+    btn.classList.add('on');
+    toast('正在找你在哪里…');
+    navigator.geolocation.getCurrentPosition(function(p){
+      btn.classList.remove('on');
+      setUserPos(wgs2gcj(p.coords.longitude, p.coords.latitude)); // 纠偏到高德坐标系并画「我在这里」
+      state.nearby = true;
+      map.setZoomAndCenter(13, userPos, false, 420);
+      applyFilter();
+      toast('找到啦！先带你看看 ' + NEARBY_KM + ' 公里内的铺子' +
+        (p.coords.accuracy > 300 ? '（电脑上定位误差大，手机上会更准）' : ''));
+    }, function(){
+      btn.classList.remove('on');
+      toast('定位失败，可以在手机设置里允许网页使用位置');
+    }, { enableHighAccuracy: true, timeout: 8000 });
+  }
+
+  /* 画/挪「我在这里」的小圆点（手动定位按钮和首屏自动定位共用） */
+  function setUserPos(pos){
+    userPos = pos;
+    if(!mapReady) return;
+    if(meMarker){ map.remove(meMarker); }
+    meMarker = new AMap.Marker({
+      position: userPos,
+      content: '<div class="me-wrap"><div class="halo"></div><div class="core"></div></div>',
+      anchor: 'center', zIndex: 140
+    });
+    map.add(meMarker);
+  }
+
+  /* ---------- 首屏自动定位用户城市 ---------- */
+  /* 目标：打开首页就显示「用户所在城市」的店铺，而不是全国大远景。
+     策略分两层：
+     1) 浏览器精确定位（需要用户点允许）：找离用户最近的店铺，
+        50 公里内就认为用户在这个城市 → 右上角城市筛选自动切过去；
+     2) 定位被拒 / 失败：用高德 CitySearch 按网络 IP 猜城市（不需要授权），
+        猜中的城市恰好有店铺就切过去；
+     两层都不行就维持原来的「全部店铺一屏总览」。 */
+  function autoDetectCity(){
+    var cityNames = [];
+    shops.forEach(function(s){ var c = s.city || '其他'; if(cityNames.indexOf(c) < 0) cityNames.push(c); });
+    if(!cityNames.length || !mapReady) return;
+
+    /* 把筛选切到某个城市：更新下拉框 → 重新筛选（图钉/列表跟着重建）→ 取景该城市 */
+    function selectCity(city, tip){
+      state.city = city;
+      $('citySelect').value = city;
+      rebuildDistricts();
+      applyFilter();
+      if(markerObjs.length){ map.setFitView(markerObjs, false, FIT_AVOID); }
+      if(tip){ toast(tip); }
+    }
+
+    /* 第二层：按 IP 猜城市（定位失败时兜底） */
+    function ipFallback(){
+      try{
+        AMap.plugin('AMap.CitySearch', function(){
+          var cs = new AMap.CitySearch();
+          cs.getLocalCity(function(status, result){
+            if(status !== 'complete' || !result || !result.city) return;
+            var ipCity = String(result.city).replace(/市$/, ''); // 「南昌市」→「南昌」
+            var match = '';
+            cityNames.forEach(function(c){
+              if(c === ipCity || c.replace(/市$/, '') === ipCity) match = c;
+            });
+            if(match) selectCity(match, '猜到你在 ' + match + '，已切到这个城市的店铺');
+          });
+        });
+      }catch(e){ /* 插件不可用就算了，保持总览 */ }
+    }
+
+    if(!navigator.geolocation){ ipFallback(); return; }
+    navigator.geolocation.getCurrentPosition(function(p){
+      setUserPos(wgs2gcj(p.coords.longitude, p.coords.latitude));
+      var bestCity = '', bestD = Infinity;
+      shops.forEach(function(s){
+        var d = haversine(userPos, [s.lng, s.lat]);
+        if(d < bestD){ bestD = d; bestCity = s.city || '其他'; }
+      });
+      if(bestCity && bestD <= 50){
+        // 用户就在有店铺的城市里：切城市筛选，并把地图对准用户位置
+        selectCity(bestCity, '定位到你在 ' + bestCity + '，已切到这个城市的店铺');
+        map.setZoomAndCenter(13, userPos, false, 420);
+      } else if(userPos){
+        // 定位成功但附近 50 公里没店铺：至少把地图挪到用户身边
+        map.setZoomAndCenter(12, userPos, false, 420);
+      }
+    }, ipFallback, { enableHighAccuracy: true, timeout: 6000 });
+  }
+
+  /* ---------- 筛选面板 ---------- */
+  function openPanel(){
+    // 打开弹窗：把「当前已生效的筛选」同步成草稿 + 点亮对应按钮，
+    // 这样不管上次是确定还是取消，弹窗里看到的永远和列表实际状态一致
+    pendingPick = { category: state.category, sort: state.sort, scene: state.scene };
+    setChipOn('catOpts', 'data-cat', pendingPick.category);
+    setChipOn('sortOpts', 'data-sort', pendingPick.sort);
+    setChipOn('sceneOpts', 'data-scene', pendingPick.scene);
+    $('panelMask').classList.add('show');
+    $('filterPanel').classList.add('show');
+  }
+  function closePanel(){
+    $('panelMask').classList.remove('show');
+    $('filterPanel').classList.remove('show');
+  }
+
+  /* ============================================================
+     底部抽屉（探过的铺子）：点击把手展开 / 收起
+     原理：抽屉高度用的是 CSS 变量 --sheet-h（默认 30vh = 占屏幕 30%）。
+     拖着「把手」或「标题栏」往上/往下滑，就实时改这个变量，
+     抽屉变高（露出更多店铺）或变矮；手一松自动吸到最近的档位。
+     展开的最大高度 = 「搜索框的下沿」：抽屉只盖地图，不盖搜索框，
+     所以滑到顶时，抽屉顶边刚好停在搜索框下面。
+     ============================================================ */
+  var SHEET_H_MIN = 30; // 收起档（占屏幕%）
+  function sheetMaxVh(){
+    // 搜索框下沿离屏幕顶部的像素 → 换算成「抽屉最多占屏幕百分之几」
+    var fc = $('filterCard');
+    var bottom = fc ? fc.getBoundingClientRect().bottom : 140;
+    var vh = (window.innerHeight - bottom - 6) / window.innerHeight * 100;
+    return Math.max(SHEET_H_MIN + 5, Math.min(84, vh));
+  }
+  function initSheetDrag(){
+    var sheet = $('shopSheet'), tip = $('sheetTip');
+    var dragState = null; // null=没在拖；否则 {startY, startVh}
+
+    // 抽屉当前高度（%）：从 CSS 变量里读出来
+    function curVh(){
+      var v = getComputedStyle(document.documentElement).getPropertyValue('--sheet-h');
+      return parseFloat(v) || SHEET_H_MIN;
+    }
+    // 设定抽屉高度（%）
+    function setVh(v){
+      document.documentElement.style.setProperty('--sheet-h', Math.round(v) + 'vh');
+    }
+
+    function begin(y, curVhVal){
+      dragState = { startY: y, startVh: curVhVal, moved: 0 };
+      sheet.classList.add('dragging'); // 拖拽中取消过渡动画，手放哪停哪
+    }
+    function move(y){
+      if(!dragState) return;
+      dragState.moved += Math.abs(y - dragState.startY); // 累计手指走过的距离
+      var v = dragState.startVh - (y - dragState.startY) / window.innerHeight * 100;
+      // 限制在最小档～搜索框下沿档之间，拖不出界
+      var maxVh = sheetMaxVh();
+      v = Math.max(SHEET_H_MIN - 2, Math.min(maxVh + 2, v));
+      setVh(v);
+    }
+    function end(){
+      if(!dragState) return;
+      sheet.classList.remove('dragging'); // 恢复过渡动画
+      var v = curVh();
+      var maxVh = sheetMaxVh();
+      // 手指几乎没动（< 10px）= 只是点了一下把手 → 直接展开/收起切换
+      if(dragState.moved < 10){
+        v = (v >= maxVh - 1) ? SHEET_H_MIN : maxVh; // 当前展开就收起，否则展开
+      } else {
+        // 拖过中位线就算想「看更多」，吸到搜索框下沿档；否则收回去
+        var halfway = (SHEET_H_MIN + maxVh) / 2;
+        v = v >= halfway ? maxVh : SHEET_H_MIN;
+      }
+      setVh(v);
+      tip.textContent = v >= maxVh - 1 ? '点击收起' : '点击展开';
+      dragState = null;
+    }
+
+    // 把手 + 标题栏 = 拖拽区（列表区域保持正常滚动，互不打架）
+    var zone = $('sheetGrab');
+    zone.addEventListener('touchstart', function(e){
+      begin(e.touches[0].clientY, curVh());
+    }, { passive: true });
+    zone.addEventListener('touchmove', function(e){
+      move(e.touches[0].clientY);
+      e.preventDefault(); // 防止抽屉跟着页面滚动
+    }, { passive: false });
+    zone.addEventListener('touchend', end);
+    zone.addEventListener('touchcancel', end);
+    $('sheetHead').addEventListener('touchstart', function(e){
+      begin(e.touches[0].clientY, curVh());
+    }, { passive: true });
+    $('sheetHead').addEventListener('touchmove', function(e){
+      move(e.touches[0].clientY);
+      e.preventDefault();
+    }, { passive: false });
+    $('sheetHead').addEventListener('touchend', end);
+    $('sheetHead').addEventListener('touchcancel', end);
+
+    // 电脑预览也能玩：鼠标按住拖
+    // 关键防抖：手机上触摸结束后浏览器会补发合成的 mousedown/mouseup，
+    // 不挡住的话会再触发一次「点按切换」→ 抽屉刚弹开就被收回去（弹一下又缩回的根因）
+    var lastTouchEnd = 0;
+    var mouseDown = false;
+    zone.addEventListener('touchend', function(){ lastTouchEnd = Date.now(); });
+    zone.addEventListener('touchcancel', function(){ lastTouchEnd = Date.now(); });
+    $('sheetHead').addEventListener('touchend', function(){ lastTouchEnd = Date.now(); });
+    $('sheetHead').addEventListener('touchcancel', function(){ lastTouchEnd = Date.now(); });
+    zone.addEventListener('mousedown', function(e){
+      if(Date.now() - lastTouchEnd < 700) return; // 刚摸过就忽略合成鼠标事件
+      mouseDown = true; begin(e.clientY, curVh());
+    });
+    document.addEventListener('mousemove', function(e){ if(mouseDown) move(e.clientY); });
+    document.addEventListener('mouseup', function(){ if(mouseDown){ mouseDown = false; end(); } });
+    $('sheetHead').addEventListener('mousedown', function(e){
+      if(Date.now() - lastTouchEnd < 700) return;
+      mouseDown = true; begin(e.clientY, curVh());
+    });
+  }
+
+  /* ---------- 收回抽屉（供点击搜索框等场景调用） ---------- */
+  /* 如果「探过的铺子」抽屉正展开（挡住地图），把它收回原位，
+     不然用户点搜索框输入时，地图被抽屉盖着看不见搜索结果。 */
+  function collapseSheetIfOpen(){
+    var v = getComputedStyle(document.documentElement).getPropertyValue('--sheet-h');
+    var cur = parseFloat(v) || SHEET_H_MIN;
+    if(cur > SHEET_H_MIN + 3){ // 只有抽屉明显展开时才收回
+      document.documentElement.style.setProperty('--sheet-h', SHEET_H_MIN + 'vh');
+      var tip = $('sheetTip');
+      if(tip) tip.textContent = '点击展开';
+    }
+  }
+
+  /* ---------- 自动展开抽屉（挑一挑选完后调用） ---------- */
+  /* 把「探过的铺子」抽屉直接滑到最高档（搜索框下沿），
+     让用户挑完筛选条件回到首页时，一眼看到筛选后的完整店铺名单。
+     和上面的 collapseSheetIfOpen() 是一对：一个收回、一个展开。 */
+  function expandSheet(){
+    var maxVh = sheetMaxVh();
+    document.documentElement.style.setProperty('--sheet-h', Math.round(maxVh) + 'vh');
+    var tip = $('sheetTip');
+    if(tip) tip.textContent = '点击收起'; // 把手上的提示文字同步换掉
+  }
+
+  function setBrandHead(avaId, nameId){
+    var a = $(avaId);
+    if(a){
+      if(BINFO.avatar){ a.innerHTML = '<img src="' + esc(BINFO.avatar) + '" alt="博主头像">'; }
+      else { a.textContent = '👩‍🍳'; }
+    }
+    var n = $(nameId); if(n) n.textContent = String(BINFO.siteName || BINFO.name || '探店博主');
+  }
+
+  /* ---------- 启动 ---------- */
+  function boot(){
+    // 站点标题：博主后台自定义 > config.js 默认
+    var siteName = String(BINFO.siteName || BINFO.name || CFG.BLOG_NAME || '探店·美食地图');
+    document.title = siteName;
+    $('blogName').innerHTML = esc(siteName).replace('·', '<b>·</b>');
+
+    // 顶栏头像：博主头像（无图回退 🍙）
+    var logo = $('brandLogo');
+    if(BINFO.avatar){ logo.innerHTML = '<img src="' + esc(BINFO.avatar) + '" alt="博主头像">'; }
+    else { logo.textContent = '🍙'; }
+    // 博主主页 / 收藏页顶栏：统一填品牌头像 + 站点名（与首页同款）
+    setBrandHead('bPageLogo', 'bPageName');
+    setBrandHead('fPageLogo', 'fPageName');
+
+    // 底部抽屉支持点击展开/收起 + 拖拽
+    initSheetDrag();
+
+    // 事件绑定
+    $('btnLocate').onclick = locate;
+    $('searchInput').oninput = function(){ state.kw = this.value; applyFilter(); };
+    // 点击搜索框准备输入时：如果「探过的铺子」抽屉展开着，先收回它，露出地图
+    // onfocus 保证键盘弹出前的标准时机；onpointerdown 双保险，手指按下瞬间就收
+    $('searchInput').onfocus = function(){ collapseSheetIfOpen(); };
+    $('searchInput').addEventListener('pointerdown', function(){ collapseSheetIfOpen(); });
+    $('btnClear').onclick = function(){
+      state.kw = ''; state.city = ''; state.district = '';
+      state.category = '';
+      state.scene = ''; // 场景也一起清空
+      // 草稿同步清空，下次打开弹窗看到的就和列表一致
+      pendingPick = { category:'', sort:'distance', scene:'' };
+      $('citySelect').value = ''; rebuildDistricts();
+      setChipOn('catOpts', 'data-cat', '');
+      setChipOn('sceneOpts', 'data-scene', '');
+      $('searchInput').value = '';
+      applyFilter();
+    };
+    $('btnFilter').onclick = openPanel;
+    $('panelMask').onclick = closePanel;
+    /* 挑完后的节奏：弹窗先滑下去 → 等它退场动画播完（约 0.4 秒）→ 抽屉再上滑。
+       expandTimer 用来记录这个"稍后再滑"的定时器：
+       如果用户手快连点了，先清掉上一次的等待，避免抽屉反复上下跳。 */
+    var expandTimer = null;
+    function closeThenExpand(){
+      closePanel();
+      if(expandTimer) clearTimeout(expandTimer);
+      expandTimer = setTimeout(function(){
+        expandTimer = null;
+        expandSheet();
+      }, 400); // 400ms ≈ 弹窗下滑动画 .38s + 一点缓冲
+    }
+    $('panelDone').onclick = function(){
+      // 点「好啦，就这样看！」才把弹窗里的草稿真正应用到列表
+      state.category = pendingPick.category;
+      state.sort = pendingPick.sort;
+      state.scene = pendingPick.scene;
+      applyFilter();
+      closeThenExpand(); // 弹窗先滑走，等它退场后抽屉再自动上滑
+    };
+    $('nearChip').onclick = function(){ state.nearby = false; applyFilter(); };
+    // 店铺列表翻页（上一页 / 下一页）
+    $('pagerPrev').onclick = function(){ if(state.page > 1){ state.page--; renderList(); } };
+    $('pagerNext').onclick = function(){ if(state.page < Math.ceil(filtered.length / PAGE_SIZE)){ state.page++; renderList(); } };
+    // 返回地图：底部 Tab 的「地图」按钮已提供，无需顶栏返回键
+    Array.prototype.forEach.call(document.querySelectorAll('#viewBlogger .sort-chip[data-sort]'), function(el){
+      el.onclick = function(){
+        state.bloggerSort = el.getAttribute('data-sort');
+        Array.prototype.forEach.call(document.querySelectorAll('#viewBlogger .sort-chip[data-sort]'), function(x){
+          x.classList.toggle('on', x === el);
+        });
+        renderBloggerGrid();
+      };
+    });
+    Array.prototype.forEach.call($('sortOpts').querySelectorAll('.opt-chip'), function(el){
+      el.onclick = function(){
+        // 只改草稿、只换高亮，不马上筛选——等「好啦，就这样看！」统一生效
+        pendingPick.sort = el.getAttribute('data-sort');
+        setChipOn('sortOpts', 'data-sort', pendingPick.sort);
+      };
+    });
+    // 什么场合（单选）：同样只改草稿，点「好啦」才生效
+    Array.prototype.forEach.call($('sceneOpts').querySelectorAll('.opt-chip'), function(el){
+      el.onclick = function(){
+        pendingPick.scene = el.getAttribute('data-scene');
+        setChipOn('sceneOpts', 'data-scene', pendingPick.scene);
+      };
+    });
+    Array.prototype.forEach.call($('tabbar').querySelectorAll('.tab'), function(el){
+      el.onclick = function(){ switchTab(el.getAttribute('data-tab')); };
+    });
+    updateFavDot();
+
+    var noKey = !CFG.AMAP_KEY || CFG.AMAP_KEY === '你的高德Key';
+
+    loadShops().then(function(){
+      // 数据加载完成后：把已经失效的收藏（博主已删的店铺）清掉，再刷新角标数字
+      cleanDeadFavs();
+      updateFavDot();
+      if(noKey){
+        fallbackMode();
+        buildFilters();
+        applyFilter();
+        setStatus('等 Key 中…');
+        setTimeout(openDoors, 450);
+        return;
+      }
+      if(CFG.SECURITY_JSCODE){
+        window._AMapSecurityConfig = { securityJsCode: CFG.SECURITY_JSCODE };
+      }
+      setStatus('铺地图中…');
+      var api = document.createElement('script');
+      api.src = 'https://webapi.amap.com/maps?v=2.0&key=' + encodeURIComponent(CFG.AMAP_KEY);
+      api.onload = function(){
+        if(!window.AMap){ fallbackMode(); }
+        else if(!initMap()){ fallbackMode(); }
+        buildFilters();
+        applyFilter();
+        if(mapReady && shops.length){
+          map.setFitView(markerObjs, false, FIT_AVOID); // 首屏先取景：所有店铺图钉都框进来
+          autoDetectCity(); // 随后自动定位用户所在城市，切到「用户的城市」视角
+        }
+        setStatus('欢迎光临！');
+        setTimeout(openDoors, 350);
+      };
+      api.onerror = function(){
+        fallbackMode();
+        buildFilters();
+        applyFilter();
+        setStatus('离线模式');
+        setTimeout(openDoors, 450);
+        setTimeout(function(){ toast('地图脚本没加载出来，检查网络后刷新即可'); }, 1800);
+      };
+      document.head.appendChild(api);
+    }).catch(function(){
+      showDoorError('数据没上桌',
+        '店铺数据 data/shops.js 没找到。<br>如果刚从管理面板导出，记得上传到仓库后刷新。<code>data/shops.js 读取失败</code>');
+    });
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
